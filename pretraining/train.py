@@ -20,7 +20,7 @@ from fairseq.trainer import Trainer
 from fairseq.meters import AverageMeter, StopwatchMeter
 from scipy.stats import pearsonr, spearmanr
 from sklearn.metrics import matthews_corrcoef, f1_score
-# from transformers.data.processors.squad import SquadResult
+from transformers.data.processors.squad import SquadResult
 
 
 def main(args, init_distributed=False):
@@ -54,7 +54,8 @@ def main(args, init_distributed=False):
     model = task.build_model(args)
     criterion = task.build_criterion(args)
     print(model)
-    print('| model {}, criterion {}'.format(args.arch, criterion.__class__.__name__))
+    print('| model {}, criterion {}'.format(
+        args.arch, criterion.__class__.__name__))
     print('| num. model params: {} (num. trained: {})'.format(
         sum(p.numel() for p in model.parameters()),
         sum(p.numel() for p in model.parameters() if p.requires_grad),
@@ -82,13 +83,14 @@ def main(args, init_distributed=False):
 
     if args.do_evaluate:
         validate(args, trainer, task, epoch_itr, valid_subsets)
-        return 
+        return
     while lr > args.min_lr and epoch_itr.epoch < max_epoch and trainer.get_num_updates() < max_update:
         # train for one epoch
         train(args, trainer, task, epoch_itr)
 
         if not args.disable_validation and epoch_itr.epoch % args.validate_interval == 0:
-            valid_losses = validate(args, trainer, task, epoch_itr, valid_subsets)
+            valid_losses = validate(
+                args, trainer, task, epoch_itr, valid_subsets)
         else:
             valid_losses = [None]
 
@@ -97,11 +99,13 @@ def main(args, init_distributed=False):
 
         # save checkpoint
         if epoch_itr.epoch % args.save_interval == 0:
-            checkpoint_utils.save_checkpoint(args, trainer, epoch_itr, valid_losses[0])
+            checkpoint_utils.save_checkpoint(
+                args, trainer, epoch_itr, valid_losses[0])
 
         reload_dataset = ':' in getattr(args, 'data', '')
         # sharded data: get train iterator for next epoch
-        epoch_itr = trainer.get_train_iterator(epoch_itr.epoch, load_dataset=reload_dataset)
+        epoch_itr = trainer.get_train_iterator(
+            epoch_itr.epoch, load_dataset=reload_dataset)
     train_meter.stop()
     print('| done training in {:.1f} seconds'.format(train_meter.sum))
 
@@ -153,8 +157,10 @@ def train(args, trainer, task, epoch_itr):
             and num_updates % args.save_interval_updates == 0
             and num_updates > 0
         ):
-            valid_losses = validate(args, trainer, task, epoch_itr, valid_subsets)
-            checkpoint_utils.save_checkpoint(args, trainer, epoch_itr, valid_losses[0])
+            valid_losses = validate(
+                args, trainer, task, epoch_itr, valid_subsets)
+            checkpoint_utils.save_checkpoint(
+                args, trainer, epoch_itr, valid_losses[0])
 
         if num_updates >= max_update:
             break
@@ -247,8 +253,8 @@ def validate(args, trainer, task, epoch_itr, subsets):
             if 'starts' in log_output:
                 for i in range(len(sample['id'])):
                     indice = sample['id'][i].tolist()
-                    start  = log_output['starts'][i].cpu().tolist()
-                    end    = log_output['ends'][i].cpu().tolist()
+                    start = log_output['starts'][i].cpu().tolist()
+                    end = log_output['ends'][i].cpu().tolist()
                     unique_id = task.features[indice].unique_id
                     result = SquadResult(unique_id, start, end)
                     all_results.append(result)
@@ -259,7 +265,7 @@ def validate(args, trainer, task, epoch_itr, subsets):
         else:
             preds = None
             targets = None
-        
+
         if len(all_results) > 0:
             results = task.compute_predictions_logits(all_results)
             for k, v in results.items():
@@ -290,7 +296,7 @@ def get_valid_stats(trainer, args, extra_meters=None, preds=None, targets=None):
         nll_loss = stats['loss']
     stats['ppl'] = utils.get_perplexity(nll_loss.avg)
     stats['num_updates'] = trainer.get_num_updates()
-    
+
     if getattr(args, "regression_target", None) is not None and preds is not None:
         stats['pearson'] = pearsonr(preds, targets)[0]
         stats['spearman'] = spearmanr(preds, targets)[0]
@@ -356,7 +362,8 @@ def cli_main():
         # fallback for single node with multiple GPUs
         assert args.distributed_world_size <= torch.cuda.device_count()
         port = random.randint(10000, 20000)
-        args.distributed_init_method = 'tcp://localhost:{port}'.format(port=port)
+        args.distributed_init_method = 'tcp://localhost:{port}'.format(
+            port=port)
         args.distributed_rank = None  # set based on device id
         if max(args.update_freq) > 1 and args.ddp_backend != 'no_c10d':
             print('| NOTE: you may get better performance with: --ddp-backend=no_c10d')
