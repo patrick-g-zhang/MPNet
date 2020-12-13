@@ -9,7 +9,7 @@ import torch.nn.functional as F
 from typing import List
 from fairseq import utils
 from fairseq.models.roberta import (
-    RobertaModel, 
+    RobertaModel,
     RobertaLMHead,
     roberta_base_architecture,
     roberta_large_architecture,
@@ -19,12 +19,14 @@ from fairseq.models import (
     register_model,
     register_model_architecture,
 )
+import pdb
 
 
 @register_model('mpnet')
 class MPNet(RobertaModel):
 
     def __init__(self, args, encoder):
+        pdb.set_trace()
         super().__init__(args, encoder)
 
     def task_compute(self, task='mlm', **kwargs):
@@ -37,30 +39,35 @@ class MPNet(RobertaModel):
 
     def compute_mlm(self, src_tokens, src_lengths, positions, pred_size, **kwargs):
         sz = src_tokens.size(1)
-        emb = self.encode_emb(self.decoder.sentence_encoder, src_tokens, positions)
+        emb = self.encode_emb(
+            self.decoder.sentence_encoder, src_tokens, positions)
         x = reverse_tensor(emb)
-        positions_bias = self.encode_relative_emb(self.decoder.sentence_encoder, positions)
+        positions_bias = self.encode_relative_emb(
+            self.decoder.sentence_encoder, positions)
         for layer in self.decoder.sentence_encoder.layers:
             x, _ = layer(x, positions_bias=positions_bias)
         x = self.maybe_final_norm(self.decoder.sentence_encoder, x)
         x = reverse_tensor(x)
-        x = self.output_layer(x[:, sz-pred_size:])
+        x = self.output_layer(x[:, sz - pred_size:])
         return x
 
     def compute_plm(self, src_tokens, src_lengths, positions, pred_size, **kwargs):
-        emb = self.encode_emb(self.decoder.sentence_encoder, src_tokens, positions)
+        emb = self.encode_emb(
+            self.decoder.sentence_encoder, src_tokens, positions)
         x = reverse_tensor(emb)
         c, q = split_tensor(x, pred_size)
         content_position_bias = self.encode_relative_emb(
             self.decoder.sentence_encoder, positions[:, :-pred_size]
         )
         if content_position_bias is not None:
-            query_position_bias = content_position_bias[:, -pred_size:].contiguous()
+            query_position_bias = content_position_bias[:, -
+                                                        pred_size:].contiguous()
         else:
             query_position_bias = None
 
         sz = c.size(0)
-        query_mask, content_mask = make_query_and_content_mask(src_tokens, sz, pred_size, kind='PLM')
+        query_mask, content_mask = make_query_and_content_mask(
+            src_tokens, sz, pred_size, kind='PLM')
         for i, layer in enumerate(self.decoder.sentence_encoder.layers):
             c, q = encode_two_stream_attn(
                 layer, c, q, content_mask, query_mask, content_position_bias, query_position_bias,
@@ -72,23 +79,27 @@ class MPNet(RobertaModel):
         return x
 
     def compute_mpnet(self, src_tokens, src_lengths, positions, pred_size, return_mlm=False, **kwargs):
-        emb = self.encode_emb(self.decoder.sentence_encoder, src_tokens, positions)
+        emb = self.encode_emb(
+            self.decoder.sentence_encoder, src_tokens, positions)
         x = reverse_tensor(emb)
         c, q = split_tensor(x, pred_size)
 
-        content_position_bias = self.encode_relative_emb(self.decoder.sentence_encoder, positions[:, :-pred_size])
+        content_position_bias = self.encode_relative_emb(
+            self.decoder.sentence_encoder, positions[:, :-pred_size])
         if content_position_bias is not None:
-            query_position_bias = content_position_bias[:, -pred_size:].contiguous()
+            query_position_bias = content_position_bias[:, -
+                                                        pred_size:].contiguous()
         else:
             query_position_bias = None
 
         sz = c.size(0) - pred_size
-        query_mask, content_mask = make_query_and_content_mask(src_tokens, sz, pred_size)
+        query_mask, content_mask = make_query_and_content_mask(
+            src_tokens, sz, pred_size)
         for i, layer in enumerate(self.decoder.sentence_encoder.layers):
             c, q = encode_two_stream_attn(
                 layer, c, q, content_mask, query_mask, content_position_bias, query_position_bias,
             )
-        
+
         q = self.maybe_final_norm(self.decoder.sentence_encoder, q)
         q = reverse_tensor(q)
         x = self.output_layer(q)
@@ -99,7 +110,7 @@ class MPNet(RobertaModel):
             c = reverse_tensor(c)
             c = self.output_layer(c)
             return x, c
-         
+
         return x
 
     @staticmethod
@@ -108,7 +119,8 @@ class MPNet(RobertaModel):
         if self.embed_scale is not None:
             x *= self.embed_scale
         if positions is not None:
-            x += F.embedding(positions + 2, self.embed_positions.weight, self.padding_idx)
+            x += F.embedding(positions + 2,
+                             self.embed_positions.weight, self.padding_idx)
         if self.emb_layer_norm is not None and not self.normalize_before:
             x = self.emb_layer_norm(x)
         x = F.dropout(x, p=self.dropout, training=self.training)
@@ -127,16 +139,17 @@ class MPNet(RobertaModel):
         qlen, klen = positions.size(1), positions.size(1)
         context_position = positions[:, :, None]
         memory_position = positions[:, None, :]
-        
+
         relative_position = memory_position - context_position
-        
+
         rp_bucket = self.relative_position_bucket(
             relative_position,
             num_buckets=self.relative_attention_num_buckets,
         )
         rp_bucket = rp_bucket.to(positions.device)
         values = self.relative_attention_bias(rp_bucket)
-        values = values.permute(0, 3, 1, 2).contiguous() # [bsz, head, qlen, klen]
+        # [bsz, head, qlen, klen]
+        values = values.permute(0, 3, 1, 2).contiguous()
         values = values.view(-1, qlen, klen)
         return values
 
@@ -151,10 +164,10 @@ def split_tensor(x, split_size):
 
 
 def encode_two_stream_attn(
-    self, 
-    c, 
-    q, 
-    content_mask: torch.Tensor = None, 
+    self,
+    c,
+    q,
+    content_mask: torch.Tensor = None,
     query_mask: torch.Tensor = None,
     content_position_bias: torch.Tensor = None,
     query_position_bias: torch.Tensor = None,
@@ -163,7 +176,7 @@ def encode_two_stream_attn(
         x = F.dropout(x, p=self.dropout, training=self.training)
         x = residual + x
         x = self.maybe_layer_norm(self.self_attn_layer_norm, x, after=True)
-    
+
         residual = x
         x = self.maybe_layer_norm(self.final_layer_norm, x, before=True)
         x = self.activation_fn(self.fc1(x))
@@ -173,10 +186,10 @@ def encode_two_stream_attn(
         x = residual + x
         x = self.maybe_layer_norm(self.final_layer_norm, x, after=True)
         return x
-    
+
     residual_c = c
     residual_q = q
-    
+
     c = self.maybe_layer_norm(self.self_attn_layer_norm, c, before=True)
     q = self.maybe_layer_norm(self.self_attn_layer_norm, q, before=True)
 
@@ -226,13 +239,13 @@ def two_stream_self_attention(
         if mask is not None:
             attn_weights = fill_mask(attn_weights, mask)
         attn_weights = utils.softmax(
-            attn_weights, dim=-1,        
+            attn_weights, dim=-1,
         ).type_as(attn_weights)
-        attn_weights = F.dropout(attn_weights, p=self.dropout, training=self.training)
+        attn_weights = F.dropout(
+            attn_weights, p=self.dropout, training=self.training)
         attn = torch.bmm(attn_weights, v)
         attn = attn.transpose(0, 1).contiguous().view(-1, bsz, embed_dim)
         return self.out_proj(attn)
-
 
     k = transpose_fn(self.in_proj_k(key))
     v = transpose_fn(self.in_proj_v(value))
@@ -268,7 +281,8 @@ def make_query_and_content_mask(tensor, a, b, kind='MPLM'):
 
     def make_query_mask():
         mask = torch.triu(torch.ones(b, b), 0)
-        mask = (torch.ones(b, a - b), 1 - mask) if kind is 'PLM' else (torch.ones(b, a - b), 1 - mask, mask)
+        mask = (torch.ones(b, a - b), 1 -
+                mask) if kind is 'PLM' else (torch.ones(b, a - b), 1 - mask, mask)
         return torch.cat(mask, dim=-1).eq(0)
 
     def make_content_mask():
@@ -276,11 +290,12 @@ def make_query_and_content_mask(tensor, a, b, kind='MPLM'):
         if kind is not 'PLM':
             mask.append(torch.zeros(b, b))
         mask = torch.cat(mask, dim=0)
-        mask = (torch.ones(a, a - b), mask) if kind is 'PLM' else (torch.ones(a + b, a - b), mask, 1 - mask)
+        mask = (torch.ones(
+            a, a - b), mask) if kind is 'PLM' else (torch.ones(a + b, a - b), mask, 1 - mask)
         return torch.cat(mask, dim=-1).eq(0)
 
     return make_query_mask().to(tensor.device), make_content_mask().to(tensor.device)
-  
+
 
 @register_model_architecture('mpnet', 'mpnet_base')
 def mpnet_base_architecture(args):
