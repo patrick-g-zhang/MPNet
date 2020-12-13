@@ -20,7 +20,7 @@ from fairseq.trainer import Trainer
 from fairseq.meters import AverageMeter, StopwatchMeter
 from scipy.stats import pearsonr, spearmanr
 from sklearn.metrics import matthews_corrcoef, f1_score
-from transformers.data.processors.squad import SquadResult
+# from transformers.data.processors.squad import SquadResult
 
 
 def main(args, init_distributed=False):
