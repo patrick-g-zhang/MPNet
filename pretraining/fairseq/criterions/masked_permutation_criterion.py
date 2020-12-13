@@ -10,6 +10,7 @@ import torch.nn.functional as F
 
 from fairseq import utils
 from . import FairseqCriterion, register_criterion
+import pdb
 
 
 def accuracy(output, target):
@@ -33,8 +34,9 @@ class MaskedPermutationCrossEntropyCriterion(FairseqCriterion):
     def add_args(parser):
         parser.add_argument('--return-mlm', default=False, action='store_true',
                             help='Return MLM loss in MPNet')
-        
+
     def forward(self, model, sample, reduce=True):
+        pdb.set_trace()
         src_length = sample['net_input']['src_tokens'].size(1)
         targets = sample['targets']
         sample_size = targets.numel()
@@ -42,7 +44,7 @@ class MaskedPermutationCrossEntropyCriterion(FairseqCriterion):
         logits = model.task_compute(
             task=self.mode,
             return_mlm=self.return_mlm,
-            **sample['net_input'], 
+            **sample['net_input'],
         )
 
         if self.return_mlm is True:
@@ -60,7 +62,8 @@ class MaskedPermutationCrossEntropyCriterion(FairseqCriterion):
         if self.return_mlm is True:
             mlm_loss = self.compute_loss(mlm_logits, targets)
             logging_output.update(mlm_loss=utils.item(mlm_loss.data))
-            logging_output.update(mlm_acc=utils.item(accuracy(mlm_logits, targets)))
+            logging_output.update(mlm_acc=utils.item(
+                accuracy(mlm_logits, targets)))
 
             loss = loss + mlm_loss
         # ignore loss if no prediction
