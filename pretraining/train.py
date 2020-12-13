@@ -50,6 +50,7 @@ def main(args, init_distributed=False):
 
     # Load valid dataset (we load training data below, based on the latest checkpoint)
     for valid_sub_split in args.valid_subset.split(','):
+        pdb.set_trace()
         task.load_dataset(valid_sub_split, combine=False, epoch=0)
 
     # Build model and criterion
