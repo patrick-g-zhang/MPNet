@@ -135,6 +135,7 @@ class TransformerSentenceEncoder(nn.Module):
 
         pdb.set_trace()
         if has_relative_attention_bias:
+            # 32 # num_attention_heads 12
             self.relative_attention_num_buckets = relative_attention_num_buckets
             self.relative_attention_bias = nn.Embedding(
                 self.relative_attention_num_buckets, num_attention_heads, padding_idx=None)
@@ -200,6 +201,7 @@ class TransformerSentenceEncoder(nn.Module):
         if not padding_mask.any():
             padding_mask = None
 
+        pdb.set_trace()
         x = self.embed_tokens(tokens)
 
         if self.embed_scale is not None:
