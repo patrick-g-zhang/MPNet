@@ -90,6 +90,7 @@ def main(args, init_distributed=False):
         return
     while lr > args.min_lr and epoch_itr.epoch < max_epoch and trainer.get_num_updates() < max_update:
         # train for one epoch
+        pdb.set_trace()
         train(args, trainer, task, epoch_itr)
 
         if not args.disable_validation and epoch_itr.epoch % args.validate_interval == 0:
@@ -134,6 +135,7 @@ def train(args, trainer, task, epoch_itr):
     valid_subsets = args.valid_subset.split(',')
     max_update = args.max_update or math.inf
     for i, samples in enumerate(progress, start=epoch_itr.iterations_in_epoch):
+        pdb.set_trace()
         log_output = trainer.train_step(samples)
         if log_output is None:
             continue
