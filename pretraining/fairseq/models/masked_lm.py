@@ -20,6 +20,7 @@ from fairseq.modules import (
     TransformerSentenceEncoder,
 )
 from fairseq.modules.transformer_sentence_encoder import init_bert_params
+import pdb
 
 
 @register_model('masked_lm')
@@ -28,6 +29,7 @@ class MaskedLMModel(BaseFairseqModel):
     Class for training a Masked Language Model. It also supports an
     additional sentence level prediction if the sent-loss argument is set.
     """
+
     def __init__(self, args, encoder):
         super().__init__()
         self.args = args
@@ -166,15 +168,18 @@ class MaskedLMEncoder(FairseqEncoder):
         self.masked_lm_pooler = nn.Linear(
             args.encoder_embed_dim, args.encoder_embed_dim
         )
-        self.pooler_activation = utils.get_activation_fn(args.pooler_activation_fn)
+        self.pooler_activation = utils.get_activation_fn(
+            args.pooler_activation_fn)
 
-        self.lm_head_transform_weight = nn.Linear(args.encoder_embed_dim, args.encoder_embed_dim)
+        self.lm_head_transform_weight = nn.Linear(
+            args.encoder_embed_dim, args.encoder_embed_dim)
         self.activation_fn = utils.get_activation_fn(args.activation_fn)
         self.layer_norm = LayerNorm(args.encoder_embed_dim)
 
         self.lm_output_learned_bias = None
         if self.load_softmax:
-            self.lm_output_learned_bias = nn.Parameter(torch.zeros(self.vocab_size))
+            self.lm_output_learned_bias = nn.Parameter(
+                torch.zeros(self.vocab_size))
 
             if not self.share_input_output_embed:
                 self.embed_out = nn.Linear(
@@ -213,16 +218,18 @@ class MaskedLMEncoder(FairseqEncoder):
                   is the prediction logit for NSP task and is only computed if
                   this is specified in the input arguments.
         """
-
+        pdb.set_trace()
         inner_states, sentence_rep = self.sentence_encoder(
             src_tokens,
             segment_labels=segment_labels,
         )
 
         x = inner_states[-1].transpose(0, 1)
-        x = self.layer_norm(self.activation_fn(self.lm_head_transform_weight(x)))
+        x = self.layer_norm(self.activation_fn(
+            self.lm_head_transform_weight(x)))
 
-        pooled_output = self.pooler_activation(self.masked_lm_pooler(sentence_rep))
+        pooled_output = self.pooler_activation(
+            self.masked_lm_pooler(sentence_rep))
 
         # project back to size of vocabulary
         if self.share_input_output_embed \
@@ -279,9 +286,11 @@ def base_architecture(args):
     args.zero_attn = getattr(args, 'zero_attn', False)
 
     args.encoder_embed_dim = getattr(args, 'encoder_embed_dim', 1024)
-    args.share_encoder_input_output_embed = getattr(args, 'share_encoder_input_output_embed', False)
+    args.share_encoder_input_output_embed = getattr(
+        args, 'share_encoder_input_output_embed', False)
     args.encoder_learned_pos = getattr(args, 'encoder_learned_pos', False)
-    args.no_token_positional_embeddings = getattr(args, 'no_token_positional_embeddings', False)
+    args.no_token_positional_embeddings = getattr(
+        args, 'no_token_positional_embeddings', False)
     args.num_segment = getattr(args, 'num_segment', 2)
 
     args.sentence_class_num = getattr(args, 'sentence_class_num', 2)
@@ -291,7 +300,8 @@ def base_architecture(args):
 
     args.activation_fn = getattr(args, 'activation_fn', 'relu')
     args.pooler_activation_fn = getattr(args, 'pooler_activation_fn', 'tanh')
-    args.encoder_normalize_before = getattr(args, 'encoder_normalize_before', False)
+    args.encoder_normalize_before = getattr(
+        args, 'encoder_normalize_before', False)
 
 
 @register_model_architecture('masked_lm', 'bert_base')
@@ -318,7 +328,8 @@ def bert_base_architecture(args):
 
     args.activation_fn = getattr(args, 'activation_fn', 'gelu')
     args.pooler_activation_fn = getattr(args, 'pooler_activation_fn', 'tanh')
-    args.encoder_normalize_before = getattr(args, 'encoder_normalize_before', True)
+    args.encoder_normalize_before = getattr(
+        args, 'encoder_normalize_before', True)
     base_architecture(args)
 
 
@@ -351,7 +362,8 @@ def xlm_architecture(args):
     args.sent_loss = getattr(args, 'sent_loss', False)
 
     args.activation_fn = getattr(args, 'activation_fn', 'gelu')
-    args.encoder_normalize_before = getattr(args, 'encoder_normalize_before', False)
+    args.encoder_normalize_before = getattr(
+        args, 'encoder_normalize_before', False)
     args.pooler_activation_fn = getattr(args, 'pooler_activation_fn', 'tanh')
     args.apply_bert_init = getattr(args, 'apply_bert_init', True)
     base_architecture(args)
