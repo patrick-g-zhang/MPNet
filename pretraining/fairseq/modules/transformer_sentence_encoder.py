@@ -15,6 +15,7 @@ from fairseq.modules import (
     PositionalEmbedding,
     TransformerSentenceEncoderLayer,
 )
+import pdb
 
 
 def init_bert_params(module):
@@ -114,7 +115,8 @@ class TransformerSentenceEncoder(nn.Module):
         self.embed_scale = embed_scale
 
         self.segment_embeddings = (
-            nn.Embedding(self.num_segments, self.embedding_dim, padding_idx=None)
+            nn.Embedding(self.num_segments,
+                         self.embedding_dim, padding_idx=None)
             if self.num_segments > 0
             else None
         )
@@ -123,13 +125,15 @@ class TransformerSentenceEncoder(nn.Module):
             PositionalEmbedding(
                 self.max_seq_len,
                 self.embedding_dim,
-                padding_idx=(self.padding_idx if offset_positions_by_padding else None),
+                padding_idx=(
+                    self.padding_idx if offset_positions_by_padding else None),
                 learned=self.learned_pos_embedding,
             )
             if self.use_position_embeddings
             else None
         )
 
+        pdb.set_trace()
         if has_relative_attention_bias:
             self.relative_attention_num_buckets = relative_attention_num_buckets
             self.relative_attention_bias = nn.Embedding(
@@ -163,7 +167,7 @@ class TransformerSentenceEncoder(nn.Module):
             self.emb_layer_norm = None
 
         self.normalize_before = normalize_before
-        
+
         # Apply initialization of model params after building the model
 
         if self.apply_bert_init:
@@ -218,20 +222,21 @@ class TransformerSentenceEncoder(nn.Module):
 
         # B x T x C -> T x B x C
         x = x.transpose(0, 1)
-        
+
         positions_bias = None
         if self.relative_attention_bias:
-            positions_bias = self.compute_position_bias(x, self.relative_attention_num_buckets)
+            positions_bias = self.compute_position_bias(
+                x, self.relative_attention_num_buckets)
 
         inner_states = []
         if not last_state_only:
             inner_states.append(x)
 
         for layer in self.layers:
-            x, _ = layer(x, 
-                self_attn_padding_mask=padding_mask,
-                positions_bias=positions_bias,
-            )
+            x, _ = layer(x,
+                         self_attn_padding_mask=padding_mask,
+                         positions_bias=positions_bias,
+                         )
             if not last_state_only:
                 inner_states.append(x)
 
@@ -252,9 +257,9 @@ class TransformerSentenceEncoder(nn.Module):
         bsz, qlen, klen = x.size(1), x.size(0), x.size(0)
         context_position = torch.arange(qlen, dtype=torch.long)[:, None]
         memory_position = torch.arange(klen, dtype=torch.long)[None, :]
-        
+
         relative_position = memory_position - context_position
-    
+
         rp_bucket = self.relative_position_bucket(
             relative_position,
             num_buckets=num_buckets
@@ -268,20 +273,22 @@ class TransformerSentenceEncoder(nn.Module):
 
     @staticmethod
     def relative_position_bucket(relative_position, num_buckets=32, max_distance=128):
-        ret = 0 
+        ret = 0
         n = -relative_position
-    
+
         num_buckets //= 2
         ret += (n < 0).to(torch.long) * num_buckets
         n = torch.abs(n)
-    
+
         max_exact = num_buckets // 2
         is_small = n < max_exact
-    
+
         val_if_large = max_exact + (
-            torch.log(n.float() / max_exact) / math.log(max_distance / max_exact) * (num_buckets - max_exact)
+            torch.log(n.float() / max_exact) / math.log(max_distance /
+                                                        max_exact) * (num_buckets - max_exact)
         ).to(torch.long)
-    
-        val_if_large = torch.min(val_if_large, torch.full_like(val_if_large, num_buckets - 1))
+
+        val_if_large = torch.min(
+            val_if_large, torch.full_like(val_if_large, num_buckets - 1))
         ret += torch.where(is_small, n, val_if_large)
-        return ret    
+        return ret
