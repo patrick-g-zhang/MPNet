@@ -38,6 +38,7 @@ class MPNet(RobertaModel):
             return self.compute_mpnet(**kwargs)
 
     def compute_mlm(self, src_tokens, src_lengths, positions, pred_size, **kwargs):
+        pdb.set_trace()
         sz = src_tokens.size(1)
         emb = self.encode_emb(
             self.decoder.sentence_encoder, src_tokens, positions)
@@ -52,6 +53,7 @@ class MPNet(RobertaModel):
         return x
 
     def compute_plm(self, src_tokens, src_lengths, positions, pred_size, **kwargs):
+        pdb.set_trace()
         emb = self.encode_emb(
             self.decoder.sentence_encoder, src_tokens, positions)
         x = reverse_tensor(emb)
@@ -115,6 +117,7 @@ class MPNet(RobertaModel):
 
     @staticmethod
     def encode_emb(self, src_tokens, positions=None):
+        pdb.set_trace()
         x = self.embed_tokens(src_tokens)
         if self.embed_scale is not None:
             x *= self.embed_scale
