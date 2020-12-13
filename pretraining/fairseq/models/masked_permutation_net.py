@@ -57,13 +57,6 @@ class MPNet(RobertaModel):
         emb = self.encode_emb(
             self.decoder.sentence_encoder, src_tokens, positions)
 
-        ################################
-        positions_bias = None
-        if self.relative_attention_bias:
-            positions_bias = self.compute_position_bias(
-                x, self.relative_attention_num_buckets)
-
-        ################################
         x = reverse_tensor(emb)
         c, q = split_tensor(x, pred_size)
         content_position_bias = self.encode_relative_emb(
@@ -135,6 +128,15 @@ class MPNet(RobertaModel):
         if self.emb_layer_norm is not None and not self.normalize_before:
             x = self.emb_layer_norm(x)
         x = F.dropout(x, p=self.dropout, training=self.training)
+
+        ################################
+        x = x.transpose(0, 1)
+        positions_bias = None
+        if self.relative_attention_bias:
+            positions_bias = self.compute_position_bias(
+                x, self.relative_attention_num_buckets)
+
+        ################################
         return x
 
     @staticmethod
