@@ -56,6 +56,14 @@ class MPNet(RobertaModel):
         pdb.set_trace()
         emb = self.encode_emb(
             self.decoder.sentence_encoder, src_tokens, positions)
+
+        ################################
+        positions_bias = None
+        if self.relative_attention_bias:
+            positions_bias = self.compute_position_bias(
+                x, self.relative_attention_num_buckets)
+
+        ################################
         x = reverse_tensor(emb)
         c, q = split_tensor(x, pred_size)
         content_position_bias = self.encode_relative_emb(
